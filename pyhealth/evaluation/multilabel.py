@@ -28,7 +28,7 @@ def get_other_acc(y, hat_y):
   f1m  = f1_score(hat_y, real, average='macro')
   f1mi = f1_score(hat_y, real, average='micro')
 
-  return {'macro f1' : f1m  'micro f1' : f1mi}
+  return {'macro f1' : f1m,  'micro f1' : f1mi}
 
 def get_top_k_results(hat_y, y, k=1):
     format_hat_y = np.zeros(np.shape(hat_y))
