@@ -17,6 +17,19 @@ from sklearn.metrics import coverage_error
 from sklearn.metrics import label_ranking_average_precision_score
 from sklearn.metrics import label_ranking_loss
 
+from sklearn.metrics import f1_score
+
+
+def get_other_acc(y, hat_y):
+    
+  hat_y = hat_y > 0.5
+  hat_y = hat_y.astype(np.float32)
+  real  = y
+  f1m  = f1_score(hat_y, real, average='macro')
+  f1mi = f1_score(hat_y, real, average='micro')
+
+  return {'macro f1' : f1m  'micro f1' : f1mi}
+
 def get_top_k_results(hat_y, y, k=1):
     format_hat_y = np.zeros(np.shape(hat_y))
     for i in range(len(hat_y)):
@@ -41,6 +54,8 @@ def get_avg_results(hat_y, y):
     values['coverage_error'] = coverage_error(y, hat_y)
     values['label_ranking_average_precision_score'] = label_ranking_average_precision_score(y, hat_y)
     values['label_ranking_loss'] = label_ranking_loss(y, hat_y)
+    values['f1_score'] = get_other_acc(y, hat_y)
+    
     return values
 
 def evaluator(hat_y, y):
