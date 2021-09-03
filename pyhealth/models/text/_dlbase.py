@@ -21,6 +21,22 @@ from tqdm._tqdm import trange
 #from ._loss import loss_dict
 from pyhealth.models.text._loss import loss_dict
 from pyhealth.utils.check import *
+from pyhealth.evaluation.evaluator import func
+
+
+from sklearn.metrics import f1_score
+
+
+def get_other_acc(real, pred):
+  hat_y = pred > 0.5
+  hat_y = hat_y.astype(np.float32)
+  real  = real
+
+  f1m  = f1_score(hat_y, real, average='macro')
+  f1mi = f1_score(hat_y, real, average='micro')
+
+  return {f'macro f1: {f1m} micro f1: {f1mi}'}
+
 
 @six.add_metaclass(abc.ABCMeta)
 class BaseControler(object):
@@ -300,6 +316,50 @@ class BaseControler(object):
             'wb'))
         pickle.dump(np.concatenate(real_v, 0), open(
             os.path.join(self.result_dir, 'y.' + self._loaded_epoch), 'wb'))
+        
+    def atest_model(self, test_loader):
+        """NEED DESCRIPTION HERE.
+
+        Parameters
+        ----------
+        test_loader : dataloader of test data
+            Combines a dataset and a sampler, and provides single- or
+            multi-process iterators over the dataset.
+            refer to torch.utils.data.dataloader
+        """
+
+        # switch to train mode
+        self.predictor.eval()
+        pre_v = []
+        prob_v = []
+        real_v = []
+        for batch_idx, databatch in enumerate(test_loader):
+            inputs = databatch['X']
+            cur_masks = databatch['cur_M']
+            masks = databatch['M']
+            targets = databatch['Y']
+            inputs = Variable(inputs).float().to(self.device)
+            masks = Variable(masks).float().to(self.device)
+            cur_masks = Variable(cur_masks).float().to(self.device)
+            targets = Variable(targets).float().to(self.device)
+            data_input = {'X': inputs, 'cur_M': cur_masks, 'M': masks}
+            _, h = self.predictor(data_input)
+            if self.task_type in ['multiclass']:
+                prob_h = F.softmax(h, dim=-1)
+            else:
+                prob_h = F.sigmoid(h)
+            pre_v.append(h.cpu().detach().numpy())
+            prob_v.append(prob_h.cpu().detach().numpy())
+            real_v.append(targets.cpu().detach().numpy())
+        pickle.dump(np.concatenate(pre_v, 0), open(
+            os.path.join(self.result_dir, 'hat_ori_y.' + self._loaded_epoch),
+            'wb'))
+        
+        hat_y_pred  = np.concatenate(prob_v, 0)
+        real_y_real = np.concatenate(real_v, 0)
+        
+        print(func(real_y_real,hat_y_pred))
+        print(get_other_acc(real_y_real,hat_y_pred))
 
 
     def _fit_model(self, train_reader, valid_reader):
@@ -308,11 +368,13 @@ class BaseControler(object):
         for epoch in tqdm_trange:
             self._train_model(train_reader)
             self._valid_model(valid_reader)
+            self.atest_model(valid_reader)
             train_loss = self.acc['train'][-1]
             valid_loss = self.acc['valid'][-1]
             train_loss_str = '{:.3f}'.format(self.acc['train'][-1])
             valid_loss_str = '{:.3f}'.format(self.acc['valid'][-1])
             tqdm_trange.set_description(f'tr=>epoch={epoch} Valid Loss: {valid_loss_str}, Train Loss: {train_loss_str}')
+            
             unit = {'epoch': epoch,
                     'state_dict': self.predictor.state_dict(),
                     'score': valid_loss,
