@@ -13,9 +13,13 @@ import pickle
 from pyhealth.data.expdata_generator import textdata as expdata_generator
 from pyhealth.models.text.tool import get_embedding
 
+from transformers import AutoTokenizer, AutoModelForMaskedLM
+  
+tokenizera = AutoTokenizer.from_pretrained("bert-base-uncased")
+
 
 def convert_examples_to_features_nonchar(tokenizer, text, maxlength_seq):
-    tokens = tokenizer.tokenize(text)
+    tokens = tokenizera.tokenize(text)
     tokens = ["[CLS]"] + tokens[:maxlength_seq - 2] + ["[SEP]"]
     value_len = len(tokens)
     pad_len = maxlength_seq - value_len if value_len < maxlength_seq else 0
@@ -25,7 +29,7 @@ def convert_examples_to_features_nonchar(tokenizer, text, maxlength_seq):
     return value_len, input_ids
 
 def convert_examples_to_features_char(tokenizer, indexer, text, maxlength_seq):
-    tokens = tokenizer.basic_tokenizer.tokenize(text)
+    tokens = tokenizera.tokenize(text)
     tokens = ["[CLS]"] + tokens[:maxlength_seq - 2] + ["[SEP]"]
     value_len = len(tokens)
     pad_len = maxlength_seq - value_len if value_len < maxlength_seq else 0
